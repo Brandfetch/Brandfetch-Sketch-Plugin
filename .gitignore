@@ -1,0 +1,11 @@
+node_modules/
+out/
+logs/
+*.log
+
+.DS_Store
+.next/
+.env
+.env.build
+
+package-lock.json
