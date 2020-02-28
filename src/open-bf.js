@@ -30,7 +30,7 @@ export const openBrandfetch = (context) => {
         identifier: 'open-bf',
         title: 'Brandfetch',
         width: 380,
-        height: 600,
+        height: 623,
         show: false,
         acceptsFirstMouse: true
     });
@@ -53,6 +53,7 @@ export const openBrandfetch = (context) => {
     win.loadURL('https://plugin.brandfetch.io/plugin/sketch');
 
     // Event listeners.
+    win.webContents.on('clickExternalLink', (payload) => clickExternalLink(payload));
     win.webContents.on('helloMessage', (payload) => helloMessage(payload));
     win.webContents.on('imageClicked', (payload) => imageClicked(payload));
     win.webContents.on('colorClicked', (payload) => colorClicked(payload));
@@ -65,6 +66,10 @@ const helloMessage = (payload) => {
     sketch.UI.message(payload.message);
 };
 
+// Open external link.
+const clickExternalLink = (payload) => {
+    NSWorkspace.sharedWorkspace().openURL(NSURL.URLWithString(payload.url));
+};
 
 // If Image is clicked.
 const imageClicked = (payload) => {

@@ -22930,7 +22930,7 @@ var openBrandfetch = function openBrandfetch(context) {
     identifier: 'open-bf',
     title: 'Brandfetch',
     width: 380,
-    height: 600,
+    height: 623,
     show: false,
     acceptsFirstMouse: true
   }); // Set window to top. 
@@ -22949,6 +22949,9 @@ var openBrandfetch = function openBrandfetch(context) {
 
   win.loadURL('https://plugin.brandfetch.io/plugin/sketch'); // Event listeners.
 
+  win.webContents.on('clickExternalLink', function (payload) {
+    return clickExternalLink(payload);
+  });
   win.webContents.on('helloMessage', function (payload) {
     return helloMessage(payload);
   });
@@ -22965,6 +22968,11 @@ var openBrandfetch = function openBrandfetch(context) {
 
 var helloMessage = function helloMessage(payload) {
   sketch.UI.message(payload.message);
+}; // Open external link.
+
+
+var clickExternalLink = function clickExternalLink(payload) {
+  NSWorkspace.sharedWorkspace().openURL(NSURL.URLWithString(payload.url));
 }; // If Image is clicked.
 
 
