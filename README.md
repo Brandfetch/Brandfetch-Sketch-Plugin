@@ -1,6 +1,6 @@
 # Brandfetch - Sketch Plugin
 
-#### Speed up your design workflow by accessing brand assets using Brandfetch's plugin right on Sketch
+#### Pull brand assets into Sketch
 
 ## Install
 
