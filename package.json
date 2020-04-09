@@ -34,6 +34,6 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git@github.com:brandfetch/sketch-plugin-brandfetch.git"
+    "url": "git+https://github.com/Brandfetch/Brandfetch-Sketch-Plugin"
   }
 }
