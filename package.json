@@ -27,7 +27,7 @@
     "regenerator-runtime": "^0.13.3",
     "sketch-module-web-view": "^3.4.1"
   },
-  "description": "Speed up your design workflow by accessing brand assets using Brandfetch's plugin right on Sketch",
+  "description": "Pull brand assets into Sketch",
   "main": "index.js",
   "keywords": [],
   "author": "Brandfetch",
