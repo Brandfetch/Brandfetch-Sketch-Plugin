@@ -20265,7 +20265,7 @@ var runtime = (function (exports) {
     return { __await: arg };
   };
 
-  function AsyncIterator(generator) {
+  function AsyncIterator(generator, PromiseImpl) {
     function invoke(method, arg, resolve, reject) {
       var record = tryCatch(generator[method], generator, arg);
       if (record.type === "throw") {
@@ -20276,14 +20276,14 @@ var runtime = (function (exports) {
         if (value &&
             typeof value === "object" &&
             hasOwn.call(value, "__await")) {
-          return Promise.resolve(value.__await).then(function(value) {
+          return PromiseImpl.resolve(value.__await).then(function(value) {
             invoke("next", value, resolve, reject);
           }, function(err) {
             invoke("throw", err, resolve, reject);
           });
         }
 
-        return Promise.resolve(value).then(function(unwrapped) {
+        return PromiseImpl.resolve(value).then(function(unwrapped) {
           // When a yielded Promise is resolved, its final value becomes
           // the .value of the Promise<{value,done}> result for the
           // current iteration.
@@ -20301,7 +20301,7 @@ var runtime = (function (exports) {
 
     function enqueue(method, arg) {
       function callInvokeWithMethodAndArg() {
-        return new Promise(function(resolve, reject) {
+        return new PromiseImpl(function(resolve, reject) {
           invoke(method, arg, resolve, reject);
         });
       }
@@ -20341,9 +20341,12 @@ var runtime = (function (exports) {
   // Note that simple async functions are implemented on top of
   // AsyncIterator objects; they just return a Promise for the value of
   // the final result produced by the iterator.
-  exports.async = function(innerFn, outerFn, self, tryLocsList) {
+  exports.async = function(innerFn, outerFn, self, tryLocsList, PromiseImpl) {
+    if (PromiseImpl === void 0) PromiseImpl = Promise;
+
     var iter = new AsyncIterator(
-      wrap(innerFn, outerFn, self, tryLocsList)
+      wrap(innerFn, outerFn, self, tryLocsList),
+      PromiseImpl
     );
 
     return exports.isGeneratorFunction(outerFn)
@@ -22884,6 +22887,230 @@ module.exports = function buildAPI(browserWindow, panel, webview) {
 
 /***/ }),
 
+/***/ "./node_modules/sketch-polyfill-fetch/lib/index.js":
+/*!*********************************************************!*\
+  !*** ./node_modules/sketch-polyfill-fetch/lib/index.js ***!
+  \*********************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Promise) {/* globals NSJSONSerialization NSJSONWritingPrettyPrinted NSDictionary NSHTTPURLResponse NSString NSASCIIStringEncoding NSUTF8StringEncoding coscript NSURL NSMutableURLRequest NSMutableData NSURLConnection */
+var Buffer;
+try {
+  Buffer = __webpack_require__(/*! buffer */ "buffer").Buffer;
+} catch (err) {}
+
+function response(httpResponse, data) {
+  var keys = [];
+  var all = [];
+  var headers = {};
+  var header;
+
+  for (var i = 0; i < httpResponse.allHeaderFields().allKeys().length; i++) {
+    var key = httpResponse
+      .allHeaderFields()
+      .allKeys()
+      [i].toLowerCase();
+    var value = String(httpResponse.allHeaderFields()[key]);
+    keys.push(key);
+    all.push([key, value]);
+    header = headers[key];
+    headers[key] = header ? header + "," + value : value;
+  }
+
+  return {
+    ok: ((httpResponse.statusCode() / 200) | 0) == 1, // 200-399
+    status: Number(httpResponse.statusCode()),
+    statusText: String(
+      NSHTTPURLResponse.localizedStringForStatusCode(httpResponse.statusCode())
+    ),
+    useFinalURL: true,
+    url: String(httpResponse.URL().absoluteString()),
+    clone: response.bind(this, httpResponse, data),
+    text: function() {
+      return new Promise(function(resolve, reject) {
+        const str = String(
+          NSString.alloc().initWithData_encoding(data, NSASCIIStringEncoding)
+        );
+        if (str) {
+          resolve(str);
+        } else {
+          reject(new Error("Couldn't parse body"));
+        }
+      });
+    },
+    json: function() {
+      return new Promise(function(resolve, reject) {
+        var str = String(
+          NSString.alloc().initWithData_encoding(data, NSUTF8StringEncoding)
+        );
+        if (str) {
+          // parse errors are turned into exceptions, which cause promise to be rejected
+          var obj = JSON.parse(str);
+          resolve(obj);
+        } else {
+          reject(
+            new Error(
+              "Could not parse JSON because it is not valid UTF-8 data."
+            )
+          );
+        }
+      });
+    },
+    blob: function() {
+      return Promise.resolve(data);
+    },
+    arrayBuffer: function() {
+      return Promise.resolve(Buffer.from(data));
+    },
+    headers: {
+      keys: function() {
+        return keys;
+      },
+      entries: function() {
+        return all;
+      },
+      get: function(n) {
+        return headers[n.toLowerCase()];
+      },
+      has: function(n) {
+        return n.toLowerCase() in headers;
+      }
+    }
+  };
+}
+
+// We create one ObjC class for ourselves here
+var DelegateClass;
+
+function fetch(urlString, options) {
+  if (
+    typeof urlString === "object" &&
+    (!urlString.isKindOfClass || !urlString.isKindOfClass(NSString))
+  ) {
+    options = urlString;
+    urlString = options.url;
+  }
+  options = options || {};
+  if (!urlString) {
+    return Promise.reject("Missing URL");
+  }
+  var fiber;
+  try {
+    fiber = coscript.createFiber();
+  } catch (err) {
+    coscript.shouldKeepAround = true;
+  }
+  return new Promise(function(resolve, reject) {
+    var url = NSURL.alloc().initWithString(urlString);
+    var request = NSMutableURLRequest.requestWithURL(url);
+    request.setHTTPMethod(options.method || "GET");
+
+    Object.keys(options.headers || {}).forEach(function(i) {
+      request.setValue_forHTTPHeaderField(options.headers[i], i);
+    });
+
+    if (options.body) {
+      var data;
+      if (typeof options.body === "string") {
+        var str = NSString.alloc().initWithString(options.body);
+        data = str.dataUsingEncoding(NSUTF8StringEncoding);
+      } else if (Buffer && Buffer.isBuffer(options.body)) {
+        data = options.body.toNSData();
+      } else if (
+        options.body.isKindOfClass &&
+        options.body.isKindOfClass(NSData) == 1
+      ) {
+        data = options.body;
+      } else if (options.body._isFormData) {
+        var boundary = options.body._boundary;
+        data = options.body._data;
+        data.appendData(
+          NSString.alloc()
+            .initWithString("--" + boundary + "--\r\n")
+            .dataUsingEncoding(NSUTF8StringEncoding)
+        );
+        request.setValue_forHTTPHeaderField(
+          "multipart/form-data; boundary=" + boundary,
+          "Content-Type"
+        );
+      } else {
+        var error;
+        data = NSJSONSerialization.dataWithJSONObject_options_error(
+          options.body,
+          NSJSONWritingPrettyPrinted,
+          error
+        );
+        if (error != null) {
+          return reject(error);
+        }
+        request.setValue_forHTTPHeaderField(
+          "" + data.length(),
+          "Content-Length"
+        );
+      }
+      request.setHTTPBody(data);
+    }
+
+    if (options.cache) {
+      switch (options.cache) {
+        case "reload":
+        case "no-cache":
+        case "no-store": {
+          request.setCachePolicy(1); // NSURLRequestReloadIgnoringLocalCacheData
+        }
+        case "force-cache": {
+          request.setCachePolicy(2); // NSURLRequestReturnCacheDataElseLoad
+        }
+        case "only-if-cached": {
+          request.setCachePolicy(3); // NSURLRequestReturnCacheDataElseLoad
+        }
+      }
+    }
+
+    if (!options.credentials) {
+      request.setHTTPShouldHandleCookies(false);
+    }
+
+    var finished = false;
+
+    var connection = NSURLSession.sharedSession().dataTaskWithRequest_completionHandler(
+      request,
+      __mocha__.createBlock_function(
+        'v32@?0@"NSData"8@"NSURLResponse"16@"NSError"24',
+        function(data, res, error) {
+          if (fiber) {
+            fiber.cleanup();
+          } else {
+            coscript.shouldKeepAround = false;
+          }
+          if (error) {
+            finished = true;
+            return reject(error);
+          }
+          return resolve(response(res, data));
+        }
+      )
+    );
+
+    connection.resume();
+
+    if (fiber) {
+      fiber.onCleanup(function() {
+        if (!finished) {
+          connection.cancel();
+        }
+      });
+    }
+  });
+}
+
+module.exports = fetch;
+
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@skpm/promise/index.js */ "./node_modules/@skpm/promise/index.js")))
+
+/***/ }),
+
 /***/ "./src/open-bf.js":
 /*!************************!*\
   !*** ./src/open-bf.js ***!
@@ -22893,7 +23120,11 @@ module.exports = function buildAPI(browserWindow, panel, webview) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "openBrandfetch", function() { return openBrandfetch; });
+/* WEBPACK VAR INJECTION */(function(Promise, fetch) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "openBrandfetch", function() { return openBrandfetch; });
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
 __webpack_require__(/*! core-js */ "./node_modules/core-js/index.js");
 
 __webpack_require__(/*! regenerator-runtime/runtime */ "./node_modules/regenerator-runtime/runtime.js");
@@ -22902,17 +23133,56 @@ var BrowserWindow = __webpack_require__(/*! sketch-module-web-view */ "./node_mo
 
 var dom = __webpack_require__(/*! sketch/dom */ "sketch/dom");
 
-var sketch = __webpack_require__(/*! sketch */ "sketch"); // documentation: https://developer.sketchapp.com/reference/api/
+var sketch = __webpack_require__(/*! sketch */ "sketch");
+
+function parentOffsetInArtboard(layer) {
+  var offset = {
+    x: 0,
+    y: 0
+  };
+  var parent = layer.parent;
+
+  while (parent.name && parent.type !== 'Artboard') {
+    offset.x += parent.frame.x;
+    offset.y += parent.frame.y;
+    parent = parent.parent;
+  }
+
+  return offset;
+}
+
+function positionInArtboard(layer, x, y) {
+  var parentOffset = parentOffsetInArtboard(layer);
+  var newFrame = new dom.Rectangle(layer.frame);
+  newFrame.x = x - parentOffset.x;
+  newFrame.y = y - parentOffset.y;
+  layer.frame = newFrame;
+}
+
+function doInsertSVG(svgCode) {
+  log(svgCode);
+  var svgString = NSString.stringWithString(svgCode);
+  var svgData = svgString.dataUsingEncoding(NSUTF8StringEncoding);
+  var svgImporter = MSSVGImporter.svgImporter();
+  svgImporter.prepareToImportFromData(svgData);
+  var svgLayer = svgImporter.importAsLayer();
+  svgLayer.setName('SVG Layer');
+  context.document.currentPage().addLayers([svgLayer]);
+  var layer = dom.getSelectedDocument().getLayersNamed('SVG Layer').pop();
+  var canvasView = context.document.contentDrawView();
+  var center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+  var shiftX = layer.frame.width / 2,
+      shiftY = layer.frame.height / 2;
+  var centerX = center.x - shiftX,
+      centerY = center.y - shiftY;
+  positionInArtboard(layer, centerX, centerY);
+  context.document.showMessage("inserted SVG file.");
+} // documentation: https://developer.sketchapp.com/reference/api/
 
 
 var getExt = function getExt(filename) {
   var idx = filename.lastIndexOf('.');
   return idx < 1 ? '' : filename.substr(idx + 1).toUpperCase();
-};
-
-var getId = function getId(filename) {
-  var idx = filename.split('.');
-  return idx.length < 1 ? '' : idx[0];
 };
 
 var openBrandfetch = function openBrandfetch(context) {
@@ -22964,6 +23234,9 @@ var openBrandfetch = function openBrandfetch(context) {
   win.webContents.on('fontClicked', function (payload) {
     return fontClicked(payload);
   });
+  win.webContents.on('logoClicked', function (payload) {
+    return logoClicked(payload);
+  });
 }; // If intro image is clicked.
 
 var helloMessage = function helloMessage(payload) {
@@ -22976,57 +23249,65 @@ var clickExternalLink = function clickExternalLink(payload) {
 }; // If Image is clicked.
 
 
-var imageClicked = function imageClicked(payload) {
-  // get image payload. 
-  var filename = payload.filename,
-      url = payload.url,
-      type = payload.type;
-  sketch.UI.message("Placing Logo: ".concat(filename));
-  log("Payload: ".concat(payload)); // Get Document, from document get page & layers.
+var imageClicked = /*#__PURE__*/function () {
+  var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(payload) {
+    var filename, url, document, selection, ext, imgURL;
+    return regeneratorRuntime.wrap(function _callee$(_context) {
+      while (1) {
+        switch (_context.prev = _context.next) {
+          case 0:
+            // get image payload. 
+            filename = payload.filename, url = payload.url; // Get Document, from document get page & layers.
+            // parent = document.selectedPage,
 
-  var document = sketch.getSelectedDocument(),
-      // parent = document.selectedPage,
-  selection = document.selectedLayers; // Check if the file is an image.
+            document = sketch.getSelectedDocument(), selection = document.selectedLayers, ext = getExt(filename); // Check if the file is an image.
 
-  var ext = getExt(filename),
-      id = getId(filename);
-  log("File ext: ".concat(ext));
-  log("File id: ".concat(id));
+            if (ext == 'JPG' || ext == 'PNG' || ext == 'GIF') {
+              _context.next = 5;
+              break;
+            }
 
-  if (!(ext == 'JPG' || ext == 'PNG' || ext == 'GIF')) {
-    sketch.UI.message("Could not load ".concat(filename, ". Please make sure it is a supported file type."));
-    return;
-  } // URL To DataImage
+            sketch.UI.message("Could not load ".concat(filename, ". Please make sure it is a supported file type."));
+            return _context.abrupt("return");
 
+          case 5:
+            // URL To DataImage
+            imgURL = NSURL.URLWithString(encodeURI(url));
 
-  var imgURL = NSURL.URLWithString(encodeURI(url));
+            if (!selection.isEmpty) {
+              selection.forEach(function (layer) {
+                layer.style.fills = [{
+                  fill: "Pattern",
+                  pattern: {
+                    image: imgURL,
+                    patternType: dom.Style.PatternFillType.Fill
+                  }
+                }];
+                layer.style.borders = [{
+                  enabled: false
+                }];
+              });
+            } else {
+              sketch.UI.message("To insert an image, please select one layer.");
+            }
 
-  if (!selection.isEmpty) {
-    selection.forEach(function (layer) {
-      var patternType = dom.Style.PatternFillType[type];
-      layer.style.fills = [{
-        fill: "Pattern",
-        pattern: {
-          image: imgURL,
-          patternType: patternType
+          case 7:
+          case "end":
+            return _context.stop();
         }
-      }];
-      layer.style.borders = [{
-        enabled: false
-      }];
-    });
-    sketch.UI.message("Placed image: ".concat(filename, "."));
-    log("Selection filled with: ".concat(filename));
-  } else {
-    sketch.UI.message("To insert an image, please select one layer.");
-  }
-}; // If color is clicked.
+      }
+    }, _callee);
+  }));
+
+  return function imageClicked(_x) {
+    return _ref.apply(this, arguments);
+  };
+}(); // If color is clicked.
 
 
 var colorClicked = function colorClicked(payload) {
   // get image payload. 
-  var color = payload.color;
-  log("Payload: ".concat(color)); // Get Document, from document get page & layers.
+  var color = payload.color; // Get Document, from document get page & layers.
 
   var document = sketch.getSelectedDocument(),
       selection = document.selectedLayers;
@@ -23049,8 +23330,7 @@ var colorClicked = function colorClicked(payload) {
 
 var fontClicked = function fontClicked(payload) {
   // get image payload. 
-  var fontName = payload.fontName;
-  log("Payload: ".concat(fontName)); // Get Document, from document get page & layers.
+  var fontName = payload.fontName; // Get Document, from document get page & layers.
 
   var document = sketch.getSelectedDocument(),
       selection = document.selectedLayers;
@@ -23069,7 +23349,79 @@ var fontClicked = function fontClicked(payload) {
   } else {
     sketch.UI.message("Copied \"".concat(fontName, "\" to clipboard."));
   }
+}; // If Logo is clicked.
+
+
+var logoClicked = function logoClicked(payload) {
+  // get image payload. 
+  var svgEl = payload.find(function (x) {
+    return x.format == "svg";
+  }),
+      imgEl = payload.find(function (x) {
+    return x.format != "svg";
+  }); // Get Document, from document get page & layers.
+  // parent = document.selectedPage,
+
+  var document = sketch.getSelectedDocument(),
+      selection = document.selectedLayers; // Check if the file is an image.
+
+  if (svgEl && selection.isEmpty) {
+    fetch(svgEl.url).then(function (response) {
+      return response.text();
+    }).then(function (text) {
+      doInsertSVG(text);
+    }).catch(function (err) {
+      log(err.message);
+      sketch.UI.message("Something went wrong with this file.");
+    });
+  } else if (imgEl.format == 'jpg' || imgEl.format == 'png' || imgEl.format == 'gif') {
+    // URL To DataImage
+    var imgURL = NSURL.URLWithString(encodeURI(imgEl.url));
+
+    if (!selection.isEmpty) {
+      selection.forEach(function (layer) {
+        layer.style.fills = [{
+          fill: "Pattern",
+          pattern: {
+            image: imgURL,
+            patternType: dom.Style.PatternFillType.Fit
+          }
+        }];
+        layer.style.borders = [{
+          enabled: false
+        }];
+      });
+    } else {
+      var canvasView = context.document.contentDrawView(),
+          center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+      new sketch.Image({
+        image: imgURL,
+        frame: {
+          x: center.x,
+          y: center.y,
+          width: imgEl.size.width,
+          height: imgEl.size.height
+        },
+        parent: sketch.getSelectedDocument().selectedPage
+      });
+    }
+  } else {
+    sketch.UI.message("Could not load ".concat(imgEl.name, ". Please make sure it is a supported file type."));
+    return;
+  }
 };
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@skpm/promise/index.js */ "./node_modules/@skpm/promise/index.js"), __webpack_require__(/*! ./node_modules/sketch-polyfill-fetch/lib/index.js */ "./node_modules/sketch-polyfill-fetch/lib/index.js")))
+
+/***/ }),
+
+/***/ "buffer":
+/*!*************************!*\
+  !*** external "buffer" ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("buffer");
 
 /***/ }),
 

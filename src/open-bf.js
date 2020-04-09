@@ -4,16 +4,55 @@ const BrowserWindow = require('sketch-module-web-view');
 const dom = require('sketch/dom');
 const sketch = require('sketch');
 
+function parentOffsetInArtboard(layer) {
+    var offset = {x: 0, y: 0};
+    var parent = layer.parent;
+    while (parent.name && parent.type !== 'Artboard') {
+      offset.x += parent.frame.x;
+      offset.y += parent.frame.y;
+      parent = parent.parent;
+    }
+    return offset;
+}
+
+function positionInArtboard(layer, x, y) {
+    var parentOffset = parentOffsetInArtboard(layer);
+    var newFrame = new dom.Rectangle(layer.frame);
+    newFrame.x = x - parentOffset.x;
+    newFrame.y = y - parentOffset.y;
+    layer.frame = newFrame;
+}
+
+function doInsertSVG(svgCode) {
+    log(svgCode);
+    let svgString = NSString.stringWithString(svgCode);
+    let svgData = svgString.dataUsingEncoding(NSUTF8StringEncoding);
+
+    let svgImporter = MSSVGImporter.svgImporter();
+    svgImporter.prepareToImportFromData(svgData);
+    let svgLayer = svgImporter.importAsLayer();
+
+    svgLayer.setName('SVG Layer');
+    context.document.currentPage().addLayers([svgLayer]);
+
+    let layer = dom.getSelectedDocument().getLayersNamed('SVG Layer').pop();
+    let canvasView = context.document.contentDrawView();
+    let center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+    
+    let shiftX = layer.frame.width / 2,
+        shiftY = layer.frame.height / 2;
+
+    let centerX = center.x - shiftX,
+        centerY = center.y - shiftY;
+
+    positionInArtboard(layer, centerX, centerY);
+    context.document.showMessage("inserted SVG file.");
+}
 
 // documentation: https://developer.sketchapp.com/reference/api/
 const getExt = (filename) => {
     var idx = filename.lastIndexOf('.');
     return (idx < 1) ? '' : filename.substr(idx + 1).toUpperCase();
-};
-
-const getId = (filename) => {
-    let idx = filename.split('.'); 
-    return (idx.length < 1) ? '' : idx[0];
 };
 
 export const openBrandfetch = (context) => {
@@ -58,6 +97,7 @@ export const openBrandfetch = (context) => {
     win.webContents.on('imageClicked', (payload) => imageClicked(payload));
     win.webContents.on('colorClicked', (payload) => colorClicked(payload));
     win.webContents.on('fontClicked', (payload) => fontClicked(payload));
+    win.webContents.on('logoClicked', (payload) => logoClicked(payload));
 };
 
 
@@ -71,26 +111,22 @@ const clickExternalLink = (payload) => {
     NSWorkspace.sharedWorkspace().openURL(NSURL.URLWithString(payload.url));
 };
 
+
 // If Image is clicked.
-const imageClicked = (payload) => {
+const imageClicked = async (payload) => {
     // get image payload. 
-    const { filename, url, type } = payload;
-    sketch.UI.message(`Placing Logo: ${filename}`);
-    log(`Payload: ${payload}`);
+    const { filename, url } = payload;
 
     // Get Document, from document get page & layers.
+    // parent = document.selectedPage,
     let document = sketch.getSelectedDocument(),
-        // parent = document.selectedPage,
-        selection = document.selectedLayers;
-    
-    // Check if the file is an image.
-    const ext = getExt(filename), id = getId(filename);
-    log(`File ext: ${ext}`);
-    log(`File id: ${id}`);
+        selection = document.selectedLayers,
+        ext = getExt(filename);
 
+    // Check if the file is an image.
     if (!(ext == 'JPG' || ext == 'PNG' || ext == 'GIF')){
-        sketch.UI.message(`Could not load ${filename}. Please make sure it is a supported file type.`)
-        return
+        sketch.UI.message(`Could not load ${filename}. Please make sure it is a supported file type.`);
+        return;
     }
 
     // URL To DataImage
@@ -98,13 +134,11 @@ const imageClicked = (payload) => {
 
     if (!selection.isEmpty) {
         selection.forEach(layer => {
-            let patternType = dom.Style.PatternFillType[type];
-    
             layer.style.fills = [{
                 fill: "Pattern",
                 pattern: {
                     image: imgURL,
-                    patternType: patternType
+                    patternType: dom.Style.PatternFillType.Fill
                 }
             }];
     
@@ -112,9 +146,6 @@ const imageClicked = (payload) => {
                 enabled: false
             }];
         });
-
-        sketch.UI.message(`Placed image: ${filename}.`);
-        log(`Selection filled with: ${filename}`);
     } else {
         sketch.UI.message(`To insert an image, please select one layer.`);
     }
@@ -125,7 +156,6 @@ const imageClicked = (payload) => {
 const colorClicked = (payload) => {
     // get image payload. 
     const { color } = payload;
-    log(`Payload: ${color}`);
 
     // Get Document, from document get page & layers.
     let document = sketch.getSelectedDocument(),
@@ -152,7 +182,6 @@ const colorClicked = (payload) => {
 const fontClicked = (payload) => {
     // get image payload. 
     const { fontName } = payload;
-    log(`Payload: ${fontName}`);
 
     // Get Document, from document get page & layers.
     let document = sketch.getSelectedDocument(),
@@ -171,5 +200,64 @@ const fontClicked = (payload) => {
         });
     } else {
         sketch.UI.message(`Copied "${fontName}" to clipboard.`);
+    }
+}
+
+
+// If Logo is clicked.
+const logoClicked = (payload) => {
+    // get image payload. 
+    let svgEl = payload.find(x => x.format == "svg"),
+        imgEl = payload.find(x => x.format != "svg");
+
+    // Get Document, from document get page & layers.
+    // parent = document.selectedPage,
+    let document = sketch.getSelectedDocument(),
+        selection = document.selectedLayers;
+
+    // Check if the file is an image.
+    if (svgEl && selection.isEmpty) {
+        fetch(svgEl.url)
+            .then(response => response.text())
+            .then(text => {
+                doInsertSVG(text);
+            })
+            .catch(err => {
+                log(err.message);
+                sketch.UI.message(`Something went wrong with this file.`)
+            });
+    }
+    else if (imgEl.format == 'jpg' || imgEl.format == 'png' || imgEl.format == 'gif') {
+        // URL To DataImage
+        const imgURL = NSURL.URLWithString(encodeURI(imgEl.url));
+
+        if (!selection.isEmpty) {
+            selection.forEach(layer => {
+                layer.style.fills = [{
+                    fill: "Pattern",
+                    pattern: {
+                        image: imgURL,
+                        patternType: dom.Style.PatternFillType.Fit
+                    }
+                }];
+        
+                layer.style.borders = [{
+                    enabled: false
+                }];
+            });
+        } else {
+            let canvasView = context.document.contentDrawView(),
+                center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+            
+            new sketch.Image({
+                image: imgURL,
+                frame: { x: center.x, y: center.y, width: imgEl.size.width, height: imgEl.size.height },
+                parent: sketch.getSelectedDocument().selectedPage
+            });
+        }
+    }
+    else {
+        sketch.UI.message(`Could not load ${imgEl.name}. Please make sure it is a supported file type.`);
+        return;
     }
 }
