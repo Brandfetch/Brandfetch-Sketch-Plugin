@@ -5,7 +5,7 @@
 ## Install
 
 - Download the most recent [release](https://github.com/brandfetch/Brandfetch-Sketch-Plugin/releases)
-- Unzip `brandfetch.sketchplugin.zip`
+- Unzip `Brandfetch-Sketch-Plugin.zip`
 - Double click `brandfetch.sketchplugin`
 
 
