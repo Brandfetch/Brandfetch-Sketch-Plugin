@@ -1,4 +1,4 @@
-# Brandfetch - Sketch Plugin
+# Brandfetch plugin for Sketch
 
 #### Pull brand assets into Sketch
 
@@ -15,8 +15,7 @@
 - Open the Brandfetch Plugin
   - Click `Plugins -> Brandfetch -> Open Brandfetch`
   - OR
-  - Press `COMMAND + SHIFT + B`
-- Confirm your email on the plugin
+  - Press `ALT + COMMAND + B`
 - Search a brand to view assets
 - Click on the desired items
 

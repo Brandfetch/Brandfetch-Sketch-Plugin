@@ -5920,7 +5920,7 @@ var store = __webpack_require__(/*! ../internals/shared-store */ "./node_modules
 (module.exports = function (key, value) {
   return store[key] || (store[key] = value !== undefined ? value : {});
 })('versions', []).push({
-  version: '3.6.4',
+  version: '3.6.5',
   mode: IS_PURE ? 'pure' : 'global',
   copyright: '© 2020 Denis Pushkarev (zloirock.ru)'
 });
@@ -6422,7 +6422,13 @@ if (!set || !clear) {
     defer = bind(port.postMessage, port, 1);
   // Browsers with postMessage, skip WebWorkers
   // IE8 has postMessage, but it's sync & typeof its postMessage is 'object'
-  } else if (global.addEventListener && typeof postMessage == 'function' && !global.importScripts && !fails(post)) {
+  } else if (
+    global.addEventListener &&
+    typeof postMessage == 'function' &&
+    !global.importScripts &&
+    !fails(post) &&
+    location.protocol !== 'file:'
+  ) {
     defer = post;
     global.addEventListener('message', listener, false);
   // IE8-
@@ -18433,7 +18439,7 @@ var INVALID_HOST = 'Invalid host';
 var INVALID_PORT = 'Invalid port';
 
 var ALPHA = /[A-Za-z]/;
-var ALPHANUMERIC = /[\d+\-.A-Za-z]/;
+var ALPHANUMERIC = /[\d+-.A-Za-z]/;
 var DIGIT = /\d/;
 var HEX_START = /^(0x|0X)/;
 var OCT = /^[0-7]+$/;
@@ -20151,6 +20157,24 @@ var runtime = (function (exports) {
   var asyncIteratorSymbol = $Symbol.asyncIterator || "@@asyncIterator";
   var toStringTagSymbol = $Symbol.toStringTag || "@@toStringTag";
 
+  function define(obj, key, value) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+    return obj[key];
+  }
+  try {
+    // IE 8 has a broken Object.defineProperty that only works on DOM objects.
+    define({}, "");
+  } catch (err) {
+    define = function(obj, key, value) {
+      return obj[key] = value;
+    };
+  }
+
   function wrap(innerFn, outerFn, self, tryLocsList) {
     // If outerFn provided and outerFn.prototype is a Generator, then outerFn.prototype instanceof Generator.
     var protoGenerator = outerFn && outerFn.prototype instanceof Generator ? outerFn : Generator;
@@ -20221,16 +20245,19 @@ var runtime = (function (exports) {
     Generator.prototype = Object.create(IteratorPrototype);
   GeneratorFunction.prototype = Gp.constructor = GeneratorFunctionPrototype;
   GeneratorFunctionPrototype.constructor = GeneratorFunction;
-  GeneratorFunctionPrototype[toStringTagSymbol] =
-    GeneratorFunction.displayName = "GeneratorFunction";
+  GeneratorFunction.displayName = define(
+    GeneratorFunctionPrototype,
+    toStringTagSymbol,
+    "GeneratorFunction"
+  );
 
   // Helper for defining the .next, .throw, and .return methods of the
   // Iterator interface in terms of a single ._invoke method.
   function defineIteratorMethods(prototype) {
     ["next", "throw", "return"].forEach(function(method) {
-      prototype[method] = function(arg) {
+      define(prototype, method, function(arg) {
         return this._invoke(method, arg);
-      };
+      });
     });
   }
 
@@ -20249,9 +20276,7 @@ var runtime = (function (exports) {
       Object.setPrototypeOf(genFun, GeneratorFunctionPrototype);
     } else {
       genFun.__proto__ = GeneratorFunctionPrototype;
-      if (!(toStringTagSymbol in genFun)) {
-        genFun[toStringTagSymbol] = "GeneratorFunction";
-      }
+      define(genFun, toStringTagSymbol, "GeneratorFunction");
     }
     genFun.prototype = Object.create(Gp);
     return genFun;
@@ -20521,7 +20546,7 @@ var runtime = (function (exports) {
   // unified ._invoke helper method.
   defineIteratorMethods(Gp);
 
-  Gp[toStringTagSymbol] = "Generator";
+  define(Gp, toStringTagSymbol, "Generator");
 
   // A Generator should always return itself as the iterator object when the
   // @@iterator function is called on it. Some browsers' implementations of the
@@ -20909,10 +20934,10 @@ function parseHexColor(color) {
     return NSColor.whiteColor()
   }
 
-  var r = parseInt(hex.slice(0, 2), 16)
-  var g = parseInt(hex.slice(2, 4), 16)
-  var b = parseInt(hex.slice(4, 6), 16)
-  var a = parseInt(hex.slice(6, 8), 16)
+  var r = parseInt(hex.slice(0, 2), 16) / 255
+  var g = parseInt(hex.slice(2, 4), 16) / 255
+  var b = parseInt(hex.slice(4, 6), 16) / 255
+  var a = parseInt(hex.slice(6, 8), 16) / 255
 
   return NSColor.colorWithSRGBRed_green_blue_alpha(r, g, b, a)
 }
@@ -22277,16 +22302,15 @@ module.exports = function(browserWindow, panel, webview, options) {
     ThemeObserverClass = new ObjCClass({
       utils: null,
 
-      'observeValueForKeyPath:ofObject:change:context:': function() {
+      'observeValueForKeyPath:ofObject:change:context:': function(keyPath,object,change) {
+        const newAppearance = change[NSKeyValueChangeNewKey]
+        const isDark = String(newAppearance.bestMatchFromAppearancesWithNames(['NSAppearanceNameAqua', 'NSAppearanceNameDarkAqua'])) === 'NSAppearanceNameDarkAqua'
+
         this.utils.executeJavaScript(
           "document.body.classList.remove('__skpm-" +
-            (typeof MSTheme !== 'undefined' && MSTheme.sharedTheme().isDark()
-              ? 'light'
-              : 'dark') +
+            (isDark ? 'light' : 'dark') +
             "'); document.body.classList.add('__skpm-" +
-            (typeof MSTheme !== 'undefined' && MSTheme.sharedTheme().isDark()
-              ? 'dark'
-              : 'light') +
+            (isDark ? 'dark' : 'light') +
             "')"
         )
       },
@@ -22494,7 +22518,7 @@ module.exports = function(browserWindow, panel, webview, options) {
   NSApplication.sharedApplication().addObserver_forKeyPath_options_context(
     themeObserver,
     'effectiveAppearance',
-    NSKeyValueChangeNewKey,
+    NSKeyValueObservingOptionNew,
     null
   )
 
@@ -22677,7 +22701,7 @@ module.exports = function buildAPI(browserWindow, panel, webview) {
   }
 
   webContents.getURL = function() {
-    return String(webview.url())
+    return String(webview.URL())
   }
 
   webContents.getTitle = function() {
@@ -23111,31 +23135,207 @@ module.exports = fetch;
 
 /***/ }),
 
-/***/ "./src/open-bf.js":
-/*!************************!*\
-  !*** ./src/open-bf.js ***!
-  \************************/
-/*! exports provided: openBrandfetch */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* WEBPACK VAR INJECTION */(function(Promise, fetch) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "openBrandfetch", function() { return openBrandfetch; });
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
-
-function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
-
-__webpack_require__(/*! core-js */ "./node_modules/core-js/index.js");
-
-__webpack_require__(/*! regenerator-runtime/runtime */ "./node_modules/regenerator-runtime/runtime.js");
-
-var BrowserWindow = __webpack_require__(/*! sketch-module-web-view */ "./node_modules/sketch-module-web-view/lib/index.js");
+/***/ "./src/handle-color.js":
+/*!*****************************!*\
+  !*** ./src/handle-color.js ***!
+  \*****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
 
 var dom = __webpack_require__(/*! sketch/dom */ "sketch/dom");
 
 var sketch = __webpack_require__(/*! sketch */ "sketch");
 
-function parentOffsetInArtboard(layer) {
+var handleClrClick = function handleClrClick(payload) {
+  var hex = payload.hex; // Get Document, from document get page & layers.
+
+  var document = sketch.getSelectedDocument(),
+      selection = document.selectedLayers;
+
+  if (!selection.isEmpty) {
+    selection.forEach(function (layer) {
+      layer.style.fills = [{
+        color: hex,
+        fillType: dom.Style.FillType.Color
+      }];
+      layer.style.borders = [{
+        enabled: false
+      }];
+    });
+  } else {
+    sketch.UI.message("Copied ".concat(hex, " to clipboard."));
+  }
+};
+
+module.exports = handleClrClick;
+
+/***/ }),
+
+/***/ "./src/handle-font.js":
+/*!****************************!*\
+  !*** ./src/handle-font.js ***!
+  \****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var sketch = __webpack_require__(/*! sketch */ "sketch");
+
+var handleFntClick = function handleFntClick(payload) {
+  var fontName = payload.fontName; // Get Document, from document get page & layers.
+
+  var document = sketch.getSelectedDocument(),
+      selection = document.selectedLayers;
+
+  if (!selection.isEmpty) {
+    selection.forEach(function (layer) {
+      if (layer.type == 'Text') {
+        var fonts = NSFontManager.sharedFontManager().availableFontFamilies();
+        var exists = false;
+
+        for (var i = 0; i < fonts.length; i++) {
+          if (fonts[i] == fontName) {
+            exists = true;
+            break;
+          }
+        }
+
+        if (exists) {
+          layer.style.fontFamily = fontName;
+        } else {
+          sketch.UI.message("Could not find ".concat(fontName, " font in Sketch."));
+        }
+      }
+    });
+  } else {
+    sketch.UI.message("Copied ".concat(fontName, " to clipboard."));
+  }
+};
+
+module.exports = handleFntClick;
+
+/***/ }),
+
+/***/ "./src/handle-img.js":
+/*!***************************!*\
+  !*** ./src/handle-img.js ***!
+  \***************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/* WEBPACK VAR INJECTION */(function(Promise, fetch) {function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
+var dom = __webpack_require__(/*! sketch/dom */ "sketch/dom");
+
+var sketch = __webpack_require__(/*! sketch */ "sketch");
+
+var handleImgClick = /*#__PURE__*/function () {
+  var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(payload) {
+    var filename, type, height, width, url, name, format, document, selection, canvasView, center, shapeW, shapeH, centerX, centerY;
+    return regeneratorRuntime.wrap(function _callee$(_context) {
+      while (1) {
+        switch (_context.prev = _context.next) {
+          case 0:
+            filename = payload.filename, type = payload.type, height = payload.height, width = payload.width, url = payload.url, name = payload.name, format = payload.format; // Check if the file is an image.
+
+            if (['JPG', 'PNG', 'GIF', 'SVG'].includes(format)) {
+              _context.next = 4;
+              break;
+            }
+
+            sketch.UI.message("Could not load ".concat(filename, ". Please make sure it is a supported file type."));
+            return _context.abrupt("return");
+
+          case 4:
+            // Get Document, from document get page & layers.
+            document = sketch.getSelectedDocument(), selection = document.selectedLayers;
+
+            if (format === 'SVG') {
+              fetch(url).then(function (response) {
+                return response.text();
+              }).then(function (content) {
+                return doInsertSVG({
+                  name: name,
+                  content: content
+                });
+              }).catch(function (err) {
+                console.log(err);
+                sketch.UI.message("Something went wrong with this file.");
+              });
+
+              if (!selection.isEmpty) {
+                sketch.UI.message("SVG files cannot be inserted into shapes.");
+              }
+            }
+
+            if (format !== 'SVG') {
+              if (!selection.isEmpty) {
+                selection.forEach(function (layer) {
+                  layer.style.fills = [{
+                    fill: "Pattern",
+                    pattern: {
+                      image: NSURL.URLWithString(encodeURI(url)),
+                      patternType: dom.Style.PatternFillType[type]
+                    }
+                  }];
+                  layer.style.borders = [{
+                    enabled: false
+                  }];
+                });
+              } else {
+                canvasView = context.document.contentDrawView();
+                center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+                shapeW = type == 'Fit' ? 220 : 440, shapeH = height / width * shapeW;
+                centerX = center.x - shapeW / 2, centerY = center.y - shapeH / 2;
+                new sketch.Image({
+                  name: name,
+                  image: NSURL.URLWithString(encodeURI(url)),
+                  frame: {
+                    x: centerX,
+                    y: centerY,
+                    width: shapeW,
+                    height: shapeH
+                  },
+                  parent: sketch.getSelectedDocument().selectedPage
+                });
+              }
+            }
+
+          case 7:
+          case "end":
+            return _context.stop();
+        }
+      }
+    }, _callee);
+  }));
+
+  return function handleImgClick(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+function doInsertSVG(_ref2) {
+  var name = _ref2.name,
+      content = _ref2.content;
+  var svgString = NSString.stringWithString(content);
+  var svgData = svgString.dataUsingEncoding(NSUTF8StringEncoding);
+  var svgImporter = MSSVGImporter.svgImporter();
+  svgImporter.prepareToImportFromData(svgData);
+  var svgLayer = svgImporter.importAsLayer();
+  svgLayer.setName(name);
+  context.document.currentPage().addLayers([svgLayer]);
+  var layer = dom.getSelectedDocument().getLayersNamed(name).pop();
+  var canvasView = context.document.contentDrawView();
+  var center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
+  var shapeW = 220,
+      shapeH = layer.frame.height / layer.frame.width * shapeW;
+  var centerX = center.x - shapeW / 2,
+      centerY = center.y - shapeH / 2;
+  positionInArtboard(layer, centerX, centerY, shapeW, shapeH);
+}
+
+var parentOffsetInArtboard = function parentOffsetInArtboard(layer) {
   var offset = {
     x: 0,
     y: 0
@@ -23149,268 +23349,108 @@ function parentOffsetInArtboard(layer) {
   }
 
   return offset;
-}
+};
 
-function positionInArtboard(layer, x, y) {
+var positionInArtboard = function positionInArtboard(layer, x, y, w, h) {
   var parentOffset = parentOffsetInArtboard(layer);
   var newFrame = new dom.Rectangle(layer.frame);
   newFrame.x = x - parentOffset.x;
   newFrame.y = y - parentOffset.y;
+  newFrame.width = w;
+  newFrame.height = h;
   layer.frame = newFrame;
-}
-
-function doInsertSVG(svgCode) {
-  log(svgCode);
-  var svgString = NSString.stringWithString(svgCode);
-  var svgData = svgString.dataUsingEncoding(NSUTF8StringEncoding);
-  var svgImporter = MSSVGImporter.svgImporter();
-  svgImporter.prepareToImportFromData(svgData);
-  var svgLayer = svgImporter.importAsLayer();
-  svgLayer.setName('SVG Layer');
-  context.document.currentPage().addLayers([svgLayer]);
-  var layer = dom.getSelectedDocument().getLayersNamed('SVG Layer').pop();
-  var canvasView = context.document.contentDrawView();
-  var center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
-  var shiftX = layer.frame.width / 2,
-      shiftY = layer.frame.height / 2;
-  var centerX = center.x - shiftX,
-      centerY = center.y - shiftY;
-  positionInArtboard(layer, centerX, centerY);
-  context.document.showMessage("inserted SVG file.");
-} // documentation: https://developer.sketchapp.com/reference/api/
-
-
-var getExt = function getExt(filename) {
-  var idx = filename.lastIndexOf('.');
-  return idx < 1 ? '' : filename.substr(idx + 1).toUpperCase();
 };
 
-var openBrandfetch = function openBrandfetch(context) {
-  // Check if window is already opened.
-  var win = BrowserWindow.fromId('open-bf');
-
-  if (win) {
-    log('Browser already open, closing it');
-    win.close();
-    return;
-  } // Initialize BrowserWindow.
-
-
-  win = new BrowserWindow({
-    identifier: 'open-bf',
-    title: 'Brandfetch',
-    width: 380,
-    height: 623,
-    show: false,
-    acceptsFirstMouse: true
-  }); // Set window to top. 
-  // Open window, if ready open.
-
-  win.setAlwaysOnTop(true, 'modal-panel');
-  win.once('ready-to-show', function () {
-    log('Opening browser');
-    win.show();
-  }); // Close window, on close event.
-
-  win.on('closed', function () {
-    log('window closed, nullifying it');
-    win = null;
-  }); // Load the remote URL.
-
-  win.loadURL('https://plugin.brandfetch.io/plugin/sketch'); // Event listeners.
-
-  win.webContents.on('clickExternalLink', function (payload) {
-    return clickExternalLink(payload);
-  });
-  win.webContents.on('helloMessage', function (payload) {
-    return helloMessage(payload);
-  });
-  win.webContents.on('imageClicked', function (payload) {
-    return imageClicked(payload);
-  });
-  win.webContents.on('colorClicked', function (payload) {
-    return colorClicked(payload);
-  });
-  win.webContents.on('fontClicked', function (payload) {
-    return fontClicked(payload);
-  });
-  win.webContents.on('logoClicked', function (payload) {
-    return logoClicked(payload);
-  });
-}; // If intro image is clicked.
-
-var helloMessage = function helloMessage(payload) {
-  sketch.UI.message(payload.message);
-}; // Open external link.
-
-
-var clickExternalLink = function clickExternalLink(payload) {
-  NSWorkspace.sharedWorkspace().openURL(NSURL.URLWithString(payload.url));
-}; // If Image is clicked.
-
-
-var imageClicked = /*#__PURE__*/function () {
-  var _ref = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee(payload) {
-    var filename, url, document, selection, ext, imgURL;
-    return regeneratorRuntime.wrap(function _callee$(_context) {
-      while (1) {
-        switch (_context.prev = _context.next) {
-          case 0:
-            // get image payload. 
-            filename = payload.filename, url = payload.url; // Get Document, from document get page & layers.
-            // parent = document.selectedPage,
-
-            document = sketch.getSelectedDocument(), selection = document.selectedLayers, ext = getExt(filename); // Check if the file is an image.
-
-            if (ext == 'JPG' || ext == 'PNG' || ext == 'GIF') {
-              _context.next = 5;
-              break;
-            }
-
-            sketch.UI.message("Could not load ".concat(filename, ". Please make sure it is a supported file type."));
-            return _context.abrupt("return");
-
-          case 5:
-            // URL To DataImage
-            imgURL = NSURL.URLWithString(encodeURI(url));
-
-            if (!selection.isEmpty) {
-              selection.forEach(function (layer) {
-                layer.style.fills = [{
-                  fill: "Pattern",
-                  pattern: {
-                    image: imgURL,
-                    patternType: dom.Style.PatternFillType.Fill
-                  }
-                }];
-                layer.style.borders = [{
-                  enabled: false
-                }];
-              });
-            } else {
-              sketch.UI.message("To insert an image, please select one layer.");
-            }
-
-          case 7:
-          case "end":
-            return _context.stop();
-        }
-      }
-    }, _callee);
-  }));
-
-  return function imageClicked(_x) {
-    return _ref.apply(this, arguments);
-  };
-}(); // If color is clicked.
-
-
-var colorClicked = function colorClicked(payload) {
-  // get image payload. 
-  var color = payload.color; // Get Document, from document get page & layers.
-
-  var document = sketch.getSelectedDocument(),
-      selection = document.selectedLayers;
-
-  if (!selection.isEmpty) {
-    selection.forEach(function (layer) {
-      layer.style.fills = [{
-        color: color,
-        fillType: dom.Style.FillType.Color
-      }];
-      layer.style.borders = [{
-        enabled: false
-      }];
-    });
-  } else {
-    sketch.UI.message("Copied \"".concat(color, "\" to clipboard."));
-  }
-}; // If font is clicked.
-
-
-var fontClicked = function fontClicked(payload) {
-  // get image payload. 
-  var fontName = payload.fontName; // Get Document, from document get page & layers.
-
-  var document = sketch.getSelectedDocument(),
-      selection = document.selectedLayers;
-
-  if (!selection.isEmpty) {
-    selection.forEach(function (layer) {
-      if (layer.type == 'Text') {
-        var current = layer.style.fontFamily;
-        layer.style.fontFamily = fontName;
-
-        if (current == layer.style.fontFamily) {
-          sketch.UI.message("Could not find \"".concat(fontName, "\" font in Sketch."));
-        }
-      }
-    });
-  } else {
-    sketch.UI.message("Copied \"".concat(fontName, "\" to clipboard."));
-  }
-}; // If Logo is clicked.
-
-
-var logoClicked = function logoClicked(payload) {
-  // get image payload. 
-  var svgEl = payload.find(function (x) {
-    return x.format == "svg";
-  }),
-      imgEl = payload.find(function (x) {
-    return x.format != "svg";
-  }); // Get Document, from document get page & layers.
-  // parent = document.selectedPage,
-
-  var document = sketch.getSelectedDocument(),
-      selection = document.selectedLayers; // Check if the file is an image.
-
-  if (svgEl && selection.isEmpty) {
-    fetch(svgEl.url).then(function (response) {
-      return response.text();
-    }).then(function (text) {
-      doInsertSVG(text);
-    }).catch(function (err) {
-      log(err.message);
-      sketch.UI.message("Something went wrong with this file.");
-    });
-  } else if (imgEl.format == 'jpg' || imgEl.format == 'png' || imgEl.format == 'gif') {
-    // URL To DataImage
-    var imgURL = NSURL.URLWithString(encodeURI(imgEl.url));
-
-    if (!selection.isEmpty) {
-      selection.forEach(function (layer) {
-        layer.style.fills = [{
-          fill: "Pattern",
-          pattern: {
-            image: imgURL,
-            patternType: dom.Style.PatternFillType.Fit
-          }
-        }];
-        layer.style.borders = [{
-          enabled: false
-        }];
-      });
-    } else {
-      var canvasView = context.document.contentDrawView(),
-          center = canvasView.viewCenterInAbsoluteCoordinatesForViewPort(canvasView.viewPort());
-      new sketch.Image({
-        image: imgURL,
-        frame: {
-          x: center.x,
-          y: center.y,
-          width: imgEl.size.width,
-          height: imgEl.size.height
-        },
-        parent: sketch.getSelectedDocument().selectedPage
-      });
-    }
-  } else {
-    sketch.UI.message("Could not load ".concat(imgEl.name, ". Please make sure it is a supported file type."));
-    return;
-  }
-};
+module.exports = handleImgClick;
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./node_modules/@skpm/promise/index.js */ "./node_modules/@skpm/promise/index.js"), __webpack_require__(/*! ./node_modules/sketch-polyfill-fetch/lib/index.js */ "./node_modules/sketch-polyfill-fetch/lib/index.js")))
+
+/***/ }),
+
+/***/ "./src/open-bf.js":
+/*!************************!*\
+  !*** ./src/open-bf.js ***!
+  \************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(/*! core-js */ "./node_modules/core-js/index.js");
+
+__webpack_require__(/*! regenerator-runtime/runtime */ "./node_modules/regenerator-runtime/runtime.js");
+
+var BrowserWindow = __webpack_require__(/*! sketch-module-web-view */ "./node_modules/sketch-module-web-view/lib/index.js");
+
+var sketch = __webpack_require__(/*! sketch */ "sketch");
+
+var handleImgClick = __webpack_require__(/*! ./handle-img.js */ "./src/handle-img.js");
+
+var handleClrClick = __webpack_require__(/*! ./handle-color.js */ "./src/handle-color.js");
+
+var handleFntClick = __webpack_require__(/*! ./handle-font.js */ "./src/handle-font.js");
+
+var handleLinkClick = function handleLinkClick(url) {
+  NSWorkspace.sharedWorkspace().openURL(NSURL.URLWithString(url));
+};
+
+var openBrandfetch = function openBrandfetch() {
+  try {
+    // Check if window is already opened.
+    var win = BrowserWindow.fromId('open-bf');
+
+    if (win) {
+      console.log('Browser already open, closing it');
+      return win.close();
+    } // Initialize BrowserWindow.
+
+
+    win = new BrowserWindow({
+      identifier: 'open-bf',
+      title: 'Brandfetch',
+      maxHeight: 700,
+      maxWidth: 400,
+      minHeight: 500,
+      minWidth: 315,
+      height: 620,
+      width: 380,
+      show: false,
+      acceptsFirstMouse: true,
+      remembersWindowFrame: true,
+      webPreferences: {
+        devTools: false
+      }
+    }); // Set window to top. Open window if ready.
+
+    win.setAlwaysOnTop(true, 'modal-panel');
+    win.once('ready-to-show', function () {
+      console.log('Opening browser');
+      win.show();
+    }); // Close window, on close event.
+
+    win.on('closed', function () {
+      console.log('Window closed, nullifying it');
+      win = null;
+    });
+    win.loadURL('https://sketch-plugin.brandfetch.io'); // Event listeners.
+
+    win.webContents.on('img_click', function (payload) {
+      return handleImgClick(payload);
+    });
+    win.webContents.on('clr_click', function (payload) {
+      return handleClrClick(payload);
+    });
+    win.webContents.on('fnt_click', function (payload) {
+      return handleFntClick(payload);
+    });
+    win.webContents.on('ext_click', function (payload) {
+      return handleLinkClick(payload.url);
+    });
+  } catch (err) {
+    sketch.UI.message("Something went wrong, check your network connexion.");
+  }
+};
+
+module.exports = {
+  openBrandfetch: openBrandfetch
+};
 
 /***/ }),
 

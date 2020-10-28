@@ -1,27 +1,28 @@
 {
-  "compatibleVersion": 3,
+  "name": "Brandfetch",
+  "description": "Pull brand assets into Sketch",
+  "author": "Brandfetch",
+  "homepage": "https://github.com/Brandfetch/Brandfetch-Sketch-Plugin",
+  "version": "2.0.0",
+  "compatibleVersion": "52.1",
   "bundleVersion": 1,
   "icon": "icon.png",
   "commands": [
     {
       "name": "Open Brandfetch",
-      "identifier": "brandfetch.open-bf-identifier",
+      "identifier": "open-brandfetch",
       "script": "__open-bf.js",
-      "shortcut": "cmd shift b",
+      "shortcut": "alt cmd b",
       "handler": "openBrandfetch"
     }
   ],
   "menu": {
     "title": "Brandfetch",
     "items": [
-      "brandfetch.open-bf-identifier"
+      "open-brandfetch"
     ]
   },
-  "version": "1.0.1",
-  "description": "Speed up your design workflow by accessing brand assets using Brandfetch's plugin right on Sketch",
-  "name": "Brandfetch",
   "identifier": "Brandfetch",
   "disableCocoaScriptPreprocessor": true,
-  "appcast": "https://raw.githubusercontent.com/brandfetch/sketch-plugin-brandfetch/master/.appcast.xml",
-  "author": "Brandfetch"
+  "appcast": "https://raw.githubusercontent.com/Brandfetch/Brandfetch-Sketch-Plugin/master/.appcast.xml"
 }

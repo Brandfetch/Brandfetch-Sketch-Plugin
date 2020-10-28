@@ -1,6 +1,6 @@
 {
-  "name": "brandfetch",
-  "version": "1.0.1",
+  "name": "brandfetch-sketch-plugin",
+  "version": "2.0.0",
   "engines": {
     "sketch": ">=3.0"
   },
@@ -19,19 +19,19 @@
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.7.5"
+    "@skpm/builder": "^0.7.7"
   },
   "dependencies": {
     "axios": "^0.19.2",
-    "core-js": "^3.6.4",
-    "regenerator-runtime": "^0.13.3",
-    "sketch-module-web-view": "^3.4.1"
+    "core-js": "^3.6.5",
+    "regenerator-runtime": "^0.13.7",
+    "sketch-module-web-view": "^3.4.3"
   },
   "description": "Pull brand assets into Sketch",
   "main": "index.js",
   "keywords": [],
   "author": "Brandfetch",
-  "license": "ISC",
+  "license": "Copyright Brandfetch",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Brandfetch/Brandfetch-Sketch-Plugin"

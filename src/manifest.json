@@ -1,20 +1,23 @@
 {
-  "compatibleVersion": 3,
+  "name": "Brandfetch",
+  "description": "Pull brand assets into Sketch",
+  "author": "Brandfetch",
+  "homepage": "https://github.com/Brandfetch/Brandfetch-Sketch-Plugin",
+  "version": "2.0.0",
+  "compatibleVersion": "52.1",
   "bundleVersion": 1,
   "icon": "icon.png",
   "commands": [
     {
       "name": "Open Brandfetch",
-      "identifier": "brandfetch.open-bf-identifier",
+      "identifier": "open-brandfetch",
       "script": "./open-bf.js",
-      "shortcut": "cmd shift b",
+      "shortcut": "alt cmd b",
       "handler": "openBrandfetch"
     }
   ],
   "menu": {
     "title": "Brandfetch",
-    "items": [
-      "brandfetch.open-bf-identifier"
-    ]
+    "items": ["open-brandfetch"]
   }
 }
