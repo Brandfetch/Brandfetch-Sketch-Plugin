@@ -18,4 +18,3 @@
   - Press `ALT + COMMAND + B`
 - Search a brand to view assets
 - Click on the desired items
-

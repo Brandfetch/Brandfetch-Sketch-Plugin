@@ -5,10 +5,7 @@
     <description>Pull brand assets into Sketch.</description>
     <language>en</language>
     <item>
-      <enclosure url="https://github.com/Brandfetch/Brandfetch-Sketch-Plugin/releases/download/v1.0.1/brandfetch.sketchplugin.zip" sparkle:version="1.0.1"/>
-    </item>
-    <item>
-      <enclosure url="https://github.com/Brandfetch/Brandfetch-Sketch-Plugin/archive/1.0.1.zip" sparkle:version="1.0"/>
+      <enclosure url="https://github.com/Brandfetch/Brandfetch-Sketch-Plugin/archive/2.0.1.zip" sparkle:version="1.0"/>
     </item>
   </channel>
 </rss>
