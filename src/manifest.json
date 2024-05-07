@@ -1,17 +1,17 @@
 {
   "name": "Brandfetch",
-  "description": "Pull brand assets into Sketch",
+  "description": "Brandfetch is the home for the world's brands. Pull the latest logos, colors, fonts and more directly into Sketch",
   "author": "Brandfetch",
   "homepage": "https://github.com/Brandfetch/Brandfetch-Sketch-Plugin",
-  "version": "2.0.1",
-  "compatibleVersion": "52.1",
+  "version": "3.0.0",
+  "compatibleVersion": "84",
   "bundleVersion": 1,
   "icon": "icon.png",
   "commands": [
     {
       "name": "Open Brandfetch",
       "identifier": "open-brandfetch",
-      "script": "./open-bf.js",
+      "script": "./open.js",
       "shortcut": "alt cmd b",
       "handler": "openBrandfetch"
     }

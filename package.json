@@ -1,6 +1,6 @@
 {
   "name": "brandfetch-sketch-plugin",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "engines": {
     "sketch": ">=3.0"
   },
@@ -19,15 +19,15 @@
     "postinstall": "npm run build && skpm-link"
   },
   "devDependencies": {
-    "@skpm/builder": "^0.7.7"
+    "@skpm/builder": "^0.9.5"
   },
   "dependencies": {
-    "axios": "^0.19.2",
-    "core-js": "^3.6.5",
-    "regenerator-runtime": "^0.13.7",
-    "sketch-module-web-view": "^3.4.3"
+    "axios": "^1.6.8",
+    "core-js": "^3.37.0",
+    "regenerator-runtime": "^0.14.1",
+    "sketch-module-web-view": "^3.5.1"
   },
-  "description": "Pull brand assets into Sketch",
+  "description": "Brandfetch is the home for the world's brands. Pull the latest logos, colors, fonts and more directly into Sketch.",
   "main": "index.js",
   "keywords": [],
   "author": "Brandfetch",

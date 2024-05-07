@@ -2,10 +2,10 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>Brandfetch 🎨</title>
-    <description>Pull brand assets into Sketch.</description>
+    <description>Brandfetch is the home for the world's brands. Pull the latest logos, colors, fonts and more directly into Sketch.</description>
     <language>en</language>
     <item>
-      <enclosure url="https://github.com/Brandfetch/Brandfetch-Sketch-Plugin/archive/2.0.1.zip" sparkle:version="1.0"/>
+      <enclosure url="https://github.com/Brandfetch/Brandfetch-Sketch-Plugin/archive/3.0.0.zip" sparkle:version="1.0"/>
     </item>
   </channel>
 </rss>
