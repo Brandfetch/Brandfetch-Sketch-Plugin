@@ -1,7 +1,7 @@
-const dom = require("sketch/dom");
-const sketch = require("sketch");
+import dom from "sketch/dom";
+import sketch from "sketch";
 
-const handleColor = ({ hexColor }) => {
+export const handleColor = ({ hexColor }) => {
   // Get Document, from document get page & layers.
   const document = sketch.getSelectedDocument();
   const selection = document.selectedLayers;
@@ -25,5 +25,3 @@ const handleColor = ({ hexColor }) => {
     sketch.UI.message(`Copied ${hexColor} to clipboard.`);
   }
 };
-
-module.exports = { handleColor };

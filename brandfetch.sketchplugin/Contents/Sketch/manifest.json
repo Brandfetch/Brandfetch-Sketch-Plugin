@@ -10,16 +10,16 @@
   "commands": [
     {
       "name": "Open Brandfetch",
-      "identifier": "open-brandfetch",
+      "identifier": "brandfetch",
       "script": "__open.js",
       "shortcut": "alt cmd b",
-      "handler": "openBrandfetch"
+      "handler": "open"
     }
   ],
   "menu": {
     "title": "Brandfetch",
     "items": [
-      "open-brandfetch"
+      "brandfetch"
     ]
   },
   "identifier": "Brandfetch",

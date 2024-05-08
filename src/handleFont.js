@@ -1,6 +1,6 @@
-const sketch = require("sketch");
+import sketch from "sketch";
 
-const handleFont = ({ fontFamily }) => {
+export const handleFont = ({ fontFamily }) => {
   // Get Document, from document get page & layers.
   const document = sketch.getSelectedDocument();
   const selection = document.selectedLayers;
@@ -29,5 +29,3 @@ const handleFont = ({ fontFamily }) => {
     sketch.UI.message(`Copied ${fontFamily} to clipboard.`);
   }
 };
-
-module.exports = { handleFont };

@@ -22,9 +22,6 @@
     "@skpm/builder": "^0.9.5"
   },
   "dependencies": {
-    "axios": "^1.6.8",
-    "core-js": "^3.37.0",
-    "regenerator-runtime": "^0.14.1",
     "sketch-module-web-view": "^3.5.1"
   },
   "description": "Brandfetch is the home for the world's brands. Pull the latest logos, colors, fonts and more directly into Sketch.",

@@ -1,17 +1,20 @@
-require("core-js");
-require("regenerator-runtime/runtime");
-const BrowserWindow = require("sketch-module-web-view");
-const sketch = require("sketch");
+import BrowserWindow from "sketch-module-web-view";
+import sketch from "sketch";
 
-const { handleImage } = require("./handleImage.js");
-const { handleColor } = require("./handleColor.js");
-const { handleFont } = require("./handleFont.js");
-const { handleLink } = require("./handleLink.js");
+import { handleFile } from "./handleFile/index.js";
+import { handleColor } from "./handleColor.js";
+import { handleFont } from "./handleFont.js";
+import { handleURL } from "./handleURL.js";
 
-const openBrandfetch = () => {
+const identifier = "brandfetch";
+
+export function open() {
   try {
     // Check if window is already opened.
-    let win = BrowserWindow.fromId("open-bf");
+    let win = BrowserWindow.fromId(identifier);
+
+    console.log("Opening Brandfetch...");
+
     if (win) {
       console.log("Browser already open, closing it");
       return win.close();
@@ -19,18 +22,18 @@ const openBrandfetch = () => {
 
     // Initialize BrowserWindow.
     win = new BrowserWindow({
-      identifier: "open-bf",
+      identifier,
       title: "Brandfetch",
-      maxHeight: 700,
-      maxWidth: 400,
-      minHeight: 500,
-      minWidth: 315,
-      height: 620,
-      width: 380,
+      maxHeight: 680,
+      maxWidth: 440,
+      minHeight: 620,
+      minWidth: 360,
+      height: 650,
+      width: 400,
       show: false,
       acceptsFirstMouse: true,
       remembersWindowFrame: true,
-      webPreferences: { devTools: false },
+      webPreferences: { devTools: true },
     });
 
     // Set window to top. Open window if ready.
@@ -46,31 +49,24 @@ const openBrandfetch = () => {
       win = null;
     });
 
-    win.loadURL("https://sketch-plugin.brandfetch.io/");
+    win.loadURL("https://sketch-plugin.brandfetch.io/app");
 
-    // Event listeners.
     win.webContents.on("file", (payload) => {
-      const data = JSON.parse(payload);
-      return handleImage(data);
+      return handleFile(payload);
     });
 
     win.webContents.on("color", (payload) => {
-      const data = JSON.parse(payload);
-      return handleColor(data);
+      return handleColor(payload);
     });
 
     win.webContents.on("font", (payload) => {
-      const data = JSON.parse(payload);
-      return handleFont(data);
+      return handleFont(payload);
     });
 
     win.webContents.on("open_url", (payload) => {
-      const data = JSON.parse(payload);
-      return handleLink(data);
+      return handleURL(payload);
     });
   } catch (err) {
-    sketch.UI.message(`Something went wrong, check your network connexion.`);
+    sketch.UI.message("Something went wrong, check your network connexion.");
   }
-};
-
-module.exports = { openBrandfetch };
+}
